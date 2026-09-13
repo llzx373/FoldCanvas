@@ -41,7 +41,10 @@ jobs:
           FOLDCANVAS_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Extract tag message as release notes
-        run: git tag -l --format='%(contents)' "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
+        run: |
+          # 浅克隆下 tag ref 被剥离为直接指向 commit，需显式拉取 tag 对象
+          git fetch --force --depth=1 origin "+refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+          git for-each-ref "refs/tags/$GITHUB_REF_NAME" --format='%(contents)' > "$RUNNER_TEMP/notes.md"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
