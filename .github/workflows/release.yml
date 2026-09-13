@@ -54,3 +54,9 @@ jobs:
           files: |
             app/build/outputs/apk/release/FoldCanvas-*-release.apk
             app/build/outputs/apk/debug/FoldCanvas-*-debug.apk
+
+      # action-gh-release 对已有 release 不会更新正文，用 gh 强制覆盖
+      - name: Update release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
