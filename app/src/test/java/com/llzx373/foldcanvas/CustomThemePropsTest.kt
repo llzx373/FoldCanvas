@@ -40,4 +40,28 @@ class CustomThemePropsTest {
         assertNull(CustomThemeProps.decode("id=only_id"))
         assertNull(CustomThemeProps.decode(""))
     }
+
+    @Test
+    fun `formFactor round trip`() {
+        val meta = CustomThemeProps.CustomThemeMeta(
+            id = "custom_w",
+            name = "宽幅主题",
+            outerFile = "outer.png",
+            innerFile = "inner.png",
+            animationFile = "animation.mp4",
+            formFactor = "wide",
+        )
+        val decoded = CustomThemeProps.decode(CustomThemeProps.encode(meta))
+        assertEquals(meta, decoded)
+        assertEquals("wide", decoded?.formFactor)
+    }
+
+    @Test
+    fun `legacy props without formFactor decode to null`() {
+        // 旧版本主题没有 formFactor 键，必须向后兼容
+        val legacy = "id=custom_old\nname=旧主题\nouter=outer.png\ninner=inner.png\n"
+        val decoded = CustomThemeProps.decode(legacy)
+        assertEquals("custom_old", decoded?.id)
+        assertNull(decoded?.formFactor)
+    }
 }

@@ -20,6 +20,18 @@ data class DeviceProfile(
         get() = innerWidth * 2 > innerHeight
 
     companion object {
+        /** 宽屏折叠屏（外屏竖屏 1168×1712 / 内屏横屏 2364×1672）。 */
+        val WIDE_FOLD = DeviceProfile(
+            innerWidth = 2364, innerHeight = 1672,
+            outerWidth = 1168, outerHeight = 1712,
+        )
+
+        /** 常规书式折叠屏（与内置默认主题同规格）。 */
+        val NORMAL_FOLD = DeviceProfile(
+            innerWidth = 1812, innerHeight = 2176,
+            outerWidth = 1080, outerHeight = 2400,
+        )
+
         fun detect(context: Context): DeviceProfile {
             var w = 0
             var h = 0

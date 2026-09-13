@@ -12,6 +12,7 @@ object CustomThemeProps {
     private const val KEY_OUTER = "outer"
     private const val KEY_INNER = "inner"
     private const val KEY_ANIMATION = "animation"
+    private const val KEY_FORM_FACTOR = "formFactor"
 
     data class CustomThemeMeta(
         val id: String,
@@ -19,6 +20,8 @@ object CustomThemeProps {
         val outerFile: String,
         val innerFile: String,
         val animationFile: String?,
+        /** 目标机型：normal / wide，旧主题无此键时为 null。 */
+        val formFactor: String? = null,
     )
 
     fun encode(meta: CustomThemeMeta): String {
@@ -28,6 +31,7 @@ object CustomThemeProps {
         props.setProperty(KEY_OUTER, meta.outerFile)
         props.setProperty(KEY_INNER, meta.innerFile)
         meta.animationFile?.let { props.setProperty(KEY_ANIMATION, it) }
+        meta.formFactor?.let { props.setProperty(KEY_FORM_FACTOR, it) }
         val out = java.io.StringWriter()
         props.store(out, null)
         return out.toString()
@@ -46,6 +50,7 @@ object CustomThemeProps {
             outerFile = outer,
             innerFile = inner,
             animationFile = props.getProperty(KEY_ANIMATION),
+            formFactor = props.getProperty(KEY_FORM_FACTOR),
         )
     }
 }

@@ -62,4 +62,21 @@ class FrameExtractor(private val context: Context) {
         val height = src.height * width / src.width
         return Bitmap.createScaledBitmap(src, width, height, true)
     }
+
+    /** 取视频末帧（向内收敛 1ms，越界取帧在部分设备返回 null）。 */
+    fun lastFrame(video: File): Bitmap? {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(video.absolutePath)
+            val durationUs = retriever
+                .extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                ?.toLongOrNull()?.times(1000L) ?: return null
+            val timeUs = (durationUs - 1000L).coerceAtLeast(0L)
+            retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST)
+        } catch (e: Exception) {
+            null
+        } finally {
+            runCatching { retriever.release() }
+        }
+    }
 }

@@ -26,8 +26,8 @@ import java.io.File
 import kotlin.coroutines.resume
 
 /**
- * 用户视频规格化：限定首尾时长、居中裁剪缩放到目标分辨率、H.264 码率上限，
- * 输出适合壁纸播放/抽帧的 mp4。
+ * 用户视频规格化：截取 [startMs, endMs] 区间、居中裁剪缩放到目标分辨率、
+ * H.264 码率上限，输出适合壁纸播放/抽帧的 mp4。
  */
 @androidx.annotation.OptIn(UnstableApi::class)
 class VideoNormalizer(private val context: Context) {
@@ -37,6 +37,8 @@ class VideoNormalizer(private val context: Context) {
         output: File,
         targetWidth: Int,
         targetHeight: Int,
+        startMs: Long,
+        endMs: Long,
         onProgress: (Float) -> Unit = {},
     ): Result<File> = withContext(Dispatchers.Main) {
         val transformer = Transformer.Builder(context)
@@ -53,7 +55,8 @@ class VideoNormalizer(private val context: Context) {
             .build()
 
         val clipping = MediaItem.ClippingConfiguration.Builder()
-            .setEndPositionMs(MAX_DURATION_MS)
+            .setStartPositionMs(startMs)
+            .setEndPositionMs(endMs)
             .build()
         val mediaItem = MediaItem.Builder()
             .setUri(input)
@@ -106,7 +109,6 @@ class VideoNormalizer(private val context: Context) {
     }
 
     companion object {
-        const val MAX_DURATION_MS = 5_000L
         const val MAX_VIDEO_BITRATE = 8_000_000
     }
 }

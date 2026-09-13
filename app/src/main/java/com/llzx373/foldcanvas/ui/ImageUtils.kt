@@ -24,19 +24,27 @@ object ImageUtils {
         val raw = context.contentResolver.openInputStream(uri)?.use {
             BitmapFactory.decodeStream(it, null, opts)
         } ?: return null
+        return centerCrop(raw, targetWidth, targetHeight)
+    }
 
+    /** 等比缩放铺满目标尺寸后居中裁剪。 */
+    fun centerCrop(src: Bitmap, targetWidth: Int, targetHeight: Int): Bitmap {
         val result = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(result)
         val scale = maxOf(
-            targetWidth / raw.width.toFloat(),
-            targetHeight / raw.height.toFloat(),
+            targetWidth / src.width.toFloat(),
+            targetHeight / src.height.toFloat(),
         )
-        val left = (targetWidth - raw.width * scale) / 2f
-        val top = (targetHeight - raw.height * scale) / 2f
+        val left = (targetWidth - src.width * scale) / 2f
+        val top = (targetHeight - src.height * scale) / 2f
         canvas.translate(left, top)
         canvas.scale(scale, scale)
-        canvas.drawBitmap(raw, 0f, 0f, null)
-        raw.recycle()
+        canvas.drawBitmap(src, 0f, 0f, null)
+        if (result != src) src.recycle()
         return result
     }
+
+    /** 取位图右半部分（宽屏折叠外屏壁纸的派生来源）。 */
+    fun rightHalf(src: Bitmap): Bitmap =
+        Bitmap.createBitmap(src, src.width / 2, 0, src.width - src.width / 2, src.height)
 }

@@ -3,8 +3,10 @@ package com.llzx373.foldcanvas.theme
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
+import com.llzx373.foldcanvas.convert.FrameExtractor
 import com.llzx373.foldcanvas.data.DeviceProfile
 import com.llzx373.foldcanvas.theme.model.FoldTheme
+import com.llzx373.foldcanvas.ui.ImageUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -116,27 +118,36 @@ class ThemeRepository(private val context: Context) {
         true
     }
 
+    /**
+     * 保存自定义主题。视频必选；外屏/内屏图可缺省：
+     * 缺内屏 → 取视频末帧居中裁剪；缺外屏 → 取内屏右半部分居中裁剪。
+     */
     fun saveCustomTheme(
         name: String,
-        outerBitmap: Bitmap,
-        innerBitmap: Bitmap,
-        normalizedVideo: File?,
+        normalizedVideo: File,
+        outerBitmap: Bitmap?,
+        innerBitmap: Bitmap?,
+        profile: DeviceProfile,
     ): FoldTheme {
+        val inner = innerBitmap ?: FrameExtractor(context).lastFrame(normalizedVideo)
+            ?.let { ImageUtils.centerCrop(it, profile.innerWidth, profile.innerHeight) }
+        val outer = outerBitmap ?: inner
+            ?.let { ImageUtils.centerCrop(ImageUtils.rightHalf(it), profile.outerWidth, profile.outerHeight) }
+        require(inner != null && outer != null) { "wallpapers unavailable" }
+
         val id = "custom_" + UUID.randomUUID().toString().substring(0, 8)
         val dir = File(customRoot, id).apply { mkdirs() }
-        outerBitmap.writeTo(File(dir, OUTER_FILE))
-        innerBitmap.writeTo(File(dir, INNER_FILE))
-        val animationName = normalizedVideo?.let {
-            val target = File(dir, ANIMATION_FILE)
-            it.copyTo(target, overwrite = true)
-            ANIMATION_FILE
-        }
+        outer.writeTo(File(dir, OUTER_FILE))
+        inner.writeTo(File(dir, INNER_FILE))
+        val target = File(dir, ANIMATION_FILE)
+        normalizedVideo.copyTo(target, overwrite = true)
         val meta = CustomThemeProps.CustomThemeMeta(
             id = id,
             name = name,
             outerFile = OUTER_FILE,
             innerFile = INNER_FILE,
-            animationFile = animationName,
+            animationFile = ANIMATION_FILE,
+            formFactor = if (profile == DeviceProfile.WIDE_FOLD) "wide" else "normal",
         )
         File(dir, THEME_PROPS).writeText(CustomThemeProps.encode(meta))
         return FoldTheme(
@@ -145,7 +156,7 @@ class ThemeRepository(private val context: Context) {
             isBuiltin = false,
             outerWallpaper = Uri.fromFile(File(dir, OUTER_FILE)),
             innerWallpaper = Uri.fromFile(File(dir, INNER_FILE)),
-            unfoldAnimation = animationName?.let { Uri.fromFile(File(dir, it)) },
+            unfoldAnimation = Uri.fromFile(File(dir, ANIMATION_FILE)),
         )
     }
 
