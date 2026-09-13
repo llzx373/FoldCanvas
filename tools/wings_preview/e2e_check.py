@@ -114,32 +114,43 @@ def check_variant(suffix):
 
 
 def check_assets():
-    pairs = [
+    # PNG 为确定性渲染产物，字节级哈希比对可验证 assets 拷贝未出错/未过期
+    png_pairs = [
         ("outer.png", "wings/outer.png"),
         ("inner.png", "wings/inner.png"),
-        ("wings.mp4", "wings/animation.mp4"),
         ("outer_wide.png", "wings_wide/outer_wide.png"),
         ("inner_wide.png", "wings_wide/inner_wide.png"),
-        ("wings_wide.mp4", "wings_wide/animation_wide.mp4"),
     ]
-    for gen, asset in pairs:
+    for gen, asset in png_pairs:
         gen_path = os.path.join(OUT, gen)
         asset_path = os.path.join(ASSETS, asset)
         ok = os.path.isfile(asset_path) and \
             sha256(gen_path) == sha256(asset_path)
         check(f"assets 同步: {asset}", ok)
+    # mp4 字节流依赖 ffmpeg 版本/构建，跨环境不稳定，
+    # 改为对 assets 中的 mp4 直接做帧数与像素保真校验
+    mp4_pairs = [
+        ("wings/animation.mp4", ""),
+        ("wings_wide/animation_wide.mp4", "_wide"),
+    ]
+    for asset, suffix in mp4_pairs:
+        check_mp4_fidelity(os.path.join(ASSETS, asset), suffix,
+                           f"assets 保真{suffix}")
 
 
-def check_video_fidelity(suffix):
+def check_mp4_fidelity(mp4_path, suffix, label):
     """ffmpeg 从 mp4 抽帧，与源帧序列做像素对比（验证视频→帧管线保真）。"""
     frames_dir = os.path.join(OUT, f"frames{suffix}")
+    if not os.path.isfile(mp4_path):
+        check(f"{label}: 文件存在", False, mp4_path)
+        return
     with tempfile.TemporaryDirectory() as tmp:
         subprocess.run([
-            "ffmpeg", "-y", "-i", os.path.join(OUT, f"wings{suffix}.mp4"),
+            "ffmpeg", "-y", "-i", mp4_path,
             os.path.join(tmp, "f_%03d.jpg"),
         ], check=True, capture_output=True)
         extracted = sorted(f for f in os.listdir(tmp) if f.endswith(".jpg"))
-        check(f"{suffix}: mp4 帧数", len(extracted) == FRAME_COUNT,
+        check(f"{label}: mp4 帧数", len(extracted) == FRAME_COUNT,
               f"actual={len(extracted)}")
         worst = 0.0
         for a, b in zip(sorted(os.listdir(frames_dir))[:5], extracted[:5]):
@@ -149,8 +160,12 @@ def check_video_fidelity(suffix):
             hist = diff.histogram()
             mean = sum(hist[i] * i for i in range(256)) / (ia.width * ia.height)
             worst = max(worst, mean)
-        check(f"{suffix}: mp4 抽帧与源帧一致", worst < 3.0,
+        check(f"{label}: mp4 抽帧与源帧一致", worst < 3.0,
               f"worst_mean_diff={worst:.2f}")
+
+
+def check_video_fidelity(suffix):
+    check_mp4_fidelity(os.path.join(OUT, f"wings{suffix}.mp4"), suffix, suffix)
 
 
 def main():
