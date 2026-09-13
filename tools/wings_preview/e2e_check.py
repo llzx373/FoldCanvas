@@ -13,7 +13,6 @@
   5. app assets 中的素材与生成产物哈希一致（拷贝未出错/未过期）
   6. mp4 抽帧与源帧序列一致（视频→帧管线保真）
 """
-import hashlib
 import os
 import subprocess
 import sys
@@ -58,11 +57,6 @@ def wing_area(img, region):
     hist = crop.histogram()
     # 背景亮度上限约 90，翅膀最低配色约 72,128+，取 110 为阈值
     return sum(hist[110:])
-
-
-def sha256(path):
-    with open(path, "rb") as f:
-        return hashlib.sha256(f.read()).hexdigest()
 
 
 def check_variant(suffix):
@@ -114,7 +108,8 @@ def check_variant(suffix):
 
 
 def check_assets():
-    # PNG 为确定性渲染产物，字节级哈希比对可验证 assets 拷贝未出错/未过期
+    # PNG 校验像素级一致（不比字节哈希：编码器实现差异不影响像素，
+    # 渲染结果对同一 Pillow 版本是确定性的，仍能抓住素材过期/拷贝错误）
     png_pairs = [
         ("outer.png", "wings/outer.png"),
         ("inner.png", "wings/inner.png"),
@@ -124,9 +119,15 @@ def check_assets():
     for gen, asset in png_pairs:
         gen_path = os.path.join(OUT, gen)
         asset_path = os.path.join(ASSETS, asset)
-        ok = os.path.isfile(asset_path) and \
-            sha256(gen_path) == sha256(asset_path)
-        check(f"assets 同步: {asset}", ok)
+        ok = os.path.isfile(asset_path)
+        detail = ""
+        if ok:
+            ia = Image.open(gen_path).convert("RGB")
+            ib = Image.open(asset_path).convert("RGB")
+            ok = ia.size == ib.size and \
+                ImageChops.difference(ia, ib).getbbox() is None
+            detail = f"gen={ia.size}, asset={ib.size}"
+        check(f"assets 同步: {asset}", ok, detail)
     # mp4 字节流依赖 ffmpeg 版本/构建，跨环境不稳定，
     # 改为对 assets 中的 mp4 直接做帧数与像素保真校验
     mp4_pairs = [

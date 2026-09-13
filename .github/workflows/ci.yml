@@ -35,6 +35,9 @@ jobs:
           python tools/duo_preview/generate_duo.py
           python tools/duo_preview/e2e_check.py
 
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
       - name: Wings preview e2e (panel animation math)
         run: |
           python tools/wings_preview/generate_wings.py
