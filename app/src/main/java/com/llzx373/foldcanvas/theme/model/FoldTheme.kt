@@ -9,4 +9,5 @@ data class FoldTheme(
     val outerWallpaper: Uri,
     val innerWallpaper: Uri,
     val unfoldAnimation: Uri?,
+    val category: ThemeCategory = ThemeCategory.ANIMATION,
 )

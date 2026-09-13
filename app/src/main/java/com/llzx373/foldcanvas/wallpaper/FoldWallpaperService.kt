@@ -19,7 +19,9 @@ import com.llzx373.foldcanvas.convert.FrameExtractor
 import com.llzx373.foldcanvas.data.SettingsStore
 import com.llzx373.foldcanvas.theme.FrameCache
 import com.llzx373.foldcanvas.theme.ThemeRepository
+import com.llzx373.foldcanvas.theme.duo.DuoFrameGenerator
 import com.llzx373.foldcanvas.theme.model.FoldTheme
+import com.llzx373.foldcanvas.theme.model.ThemeCategory
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
@@ -46,6 +48,9 @@ class FoldWallpaperService : WallpaperService() {
         private val settings by lazy { SettingsStore(applicationContext) }
         private val repository by lazy { ThemeRepository(applicationContext) }
         private val frameCache by lazy { FrameCache(applicationContext) }
+
+        /** 当前 surface 是否为外屏（展屏模糊主题下播放外屏动画帧）。 */
+        private var coverMode = false
 
         /** 传感器原始角度。 */
         private var angle = 180f
@@ -209,6 +214,11 @@ class FoldWallpaperService : WallpaperService() {
                 renderer.configure(surfaceWidth, surfaceHeight, null, null, emptyList())
                 return
             }
+            coverMode = theme.category == ThemeCategory.DUO_BLUR && isCoverSurface()
+            if (coverMode) {
+                reloadCoverFrames(theme)
+                return
+            }
             val frames = frameCache.frames(theme.id)
             renderer.configure(
                 surfaceWidth, surfaceHeight,
@@ -219,6 +229,53 @@ class FoldWallpaperService : WallpaperService() {
             if (!frameCache.isReady(theme.id)) prepareFrames(theme)
         }
 
+        /**
+         * 外屏 surface 判定：独立 display（API 31+ displayContext）即为外屏；
+         * 单引擎折叠设备（MIUI 等 surface 随开合缩放）用宽高比启发式——
+         * 阈值为当前设备档案内/外屏宽高比的几何中值（NORMAL≈1.63，WIDE≈1.02），
+         * 比全局写死值对档案偏差更稳健；仅在有铰链传感器时启用，直板机不受影响。
+         */
+        private fun isCoverSurface(): Boolean {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val id = displayContext?.display?.displayId
+                if (id != null && id != android.view.Display.DEFAULT_DISPLAY) return true
+            }
+            if (hingeSensor == null || surfaceWidth <= 0) return false
+            val profile = com.llzx373.foldcanvas.data.DeviceProfile.detect(applicationContext)
+            val innerRatio = profile.innerHeight.toFloat() / profile.innerWidth
+            val coverRatio = profile.outerHeight.toFloat() / profile.outerWidth
+            val threshold = kotlin.math.sqrt(innerRatio * coverRatio)
+            val surfaceRatio = surfaceHeight.toFloat() / surfaceWidth
+            return surfaceRatio > threshold
+        }
+
+        /** 外屏模式：配置外屏动画帧（右半幅窗口 + 铰链→外缘渐进模糊压暗）。 */
+        private fun reloadCoverFrames(theme: FoldTheme) {
+            val coverId = theme.id + FrameCache.COVER_SUFFIX
+            synchronized(FrameCache.extractLock(coverId)) {
+                repository.ensureDuoCoverFrames(theme, frameCache)
+                val frames = frameCache.frames(coverId)
+                if (frames.isNotEmpty()) {
+                    // 复用三段式渲染：outer=首帧、inner=末帧、0°→90° 映射播放
+                    renderer.configure(
+                        surfaceWidth, surfaceHeight,
+                        outer = frames.first(),
+                        inner = frames.last(),
+                        frames = frames,
+                    )
+                } else {
+                    // 帧生成失败：退化为静态外屏图
+                    renderer.configure(
+                        surfaceWidth, surfaceHeight,
+                        outer = fileOf(theme.outerWallpaper),
+                        inner = null,
+                        frames = emptyList(),
+                    )
+                }
+            }
+            drawNow()
+        }
+
         private fun resolveActiveTheme(): FoldTheme? {
             val id = settings.activeThemeId
             val themes = repository.listThemes()
@@ -227,6 +284,8 @@ class FoldWallpaperService : WallpaperService() {
 
         private fun prepareFrames(theme: FoldTheme) {
             synchronized(FrameCache.extractLock(theme.id)) {
+                // 内外图片类别无动画帧，渲染时退化为外/内屏交叉淡化
+                if (theme.category == ThemeCategory.IMAGES) return
                 if (frameCache.isReady(theme.id)) {
                     renderer.configure(
                         surfaceWidth, surfaceHeight,
@@ -238,7 +297,15 @@ class FoldWallpaperService : WallpaperService() {
                     return
                 }
                 val video = theme.unfoldAnimation
-                val ok = if (video != null) {
+                val ok = if (theme.category == ThemeCategory.DUO_BLUR) {
+                    val inner = fileOf(theme.innerWallpaper)
+                    inner != null && DuoFrameGenerator().generate(
+                        innerFile = inner,
+                        outDir = frameCache.prepareDir(theme.id),
+                        frameCount = FrameCache.FRAME_COUNT,
+                        targetWidth = FrameCache.FRAME_WIDTH,
+                    )
+                } else if (video != null) {
                     FrameExtractor(applicationContext).extract(
                         video = video,
                         outDir = frameCache.prepareDir(theme.id),
@@ -272,7 +339,9 @@ class FoldWallpaperService : WallpaperService() {
             if (!visible && surfaceWidth == 0) return
             renderer.draw(
                 surfaceHolder, displayedAngle,
-                settings.angleStart, settings.angleEnd,
+                // 外屏模式：0°→90° 映射播放外屏帧；内屏：设置的角度区间
+                if (coverMode) COVER_ANGLE_START else settings.angleStart,
+                if (coverMode) COVER_ANGLE_END else settings.angleEnd,
                 settings.animationEnabled,
             )
         }
@@ -286,5 +355,9 @@ class FoldWallpaperService : WallpaperService() {
         private const val DEMO_PERIOD_MS = 4_000L
         private const val DEMO_FRAME_MS = 16L
         private const val CONVERGE_EPSILON = 0.1f
+
+        /** 外屏动画角度区间：0°→90°（与 DuoFoldMath.coverProgress 一致）。 */
+        private const val COVER_ANGLE_START = 0f
+        private const val COVER_ANGLE_END = 90f
     }
 }

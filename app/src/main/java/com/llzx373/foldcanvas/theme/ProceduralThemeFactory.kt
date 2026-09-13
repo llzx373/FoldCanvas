@@ -6,6 +6,7 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.RadialGradient
 import android.graphics.Shader
+import com.llzx373.foldcanvas.theme.model.ThemeCategory
 import kotlin.math.sin
 
 /**
@@ -25,6 +26,8 @@ object ProceduralThemeFactory {
         val outerFile: String = "outer.png",
         val innerFile: String = "inner.png",
         val animationFile: String = "animation.mp4",
+        /** 主题类别；asset 主题固定为展屏动画。 */
+        val category: ThemeCategory = ThemeCategory.ANIMATION,
     )
 
     val specs = listOf(
@@ -61,6 +64,19 @@ object ProceduralThemeFactory {
             outerFile = "outer_wide.png",
             innerFile = "inner_wide.png",
             animationFile = "animation_wide.mp4",
+        ),
+        BuiltinSpec(
+            id = "lakes",
+            name = "湖光双色",
+            category = ThemeCategory.IMAGES,
+            outerColors = intArrayOf(0xFF0B2545.toInt(), 0xFF136F63.toInt(), 0xFF8AB17D.toInt()),
+            innerColors = intArrayOf(0xFF2B2D42.toInt(), 0xFF8D6A9F.toInt(), 0xFFEFB0A1.toInt()),
+        ),
+        BuiltinSpec(
+            id = "mist",
+            name = "雾境朦胧",
+            category = ThemeCategory.DUO_BLUR,
+            innerColors = intArrayOf(0xFF141E30.toInt(), 0xFF3A5A78.toInt(), 0xFFA8C0D6.toInt()),
         ),
     )
 

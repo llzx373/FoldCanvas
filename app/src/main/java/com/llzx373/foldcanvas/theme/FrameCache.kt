@@ -32,9 +32,26 @@ class FrameCache(context: Context) {
         framesDir(themeId).deleteRecursively()
     }
 
+    /** 全部帧缓存占用字节数（递归统计，含 .done 标记）。 */
+    fun totalSize(): Long {
+        fun walk(f: File): Long = when {
+            f.isFile -> f.length()
+            f.isDirectory -> f.listFiles()?.sumOf { walk(it) } ?: 0L
+            else -> 0L
+        }
+        return walk(root)
+    }
+
+    fun clearAll() {
+        root.deleteRecursively()
+    }
+
     companion object {
         const val FRAME_COUNT = 45
         const val FRAME_WIDTH = 1440
+
+        /** 展屏模糊主题外屏帧缓存的 themeId 后缀（与内屏帧缓存区分）。 */
+        const val COVER_SUFFIX = "_cover"
         private const val DONE_MARKER = ".done"
 
         /** 同一主题只允许一个执行体抽帧（桌面/锁屏引擎、详情页可能并发）。 */

@@ -8,8 +8,11 @@
 ## 特性
 
 - **角度驱动帧序列**：`Sensor.TYPE_HINGE_ANGLE` → 线性映射 → 45 帧 JPEG 逐帧 blit；合并绘制只画最新角度 + 相邻帧预取，`SENSOR_DELAY_FASTEST` 采样
-- **内置主题「展翼 / 展翼·宽幅」**：抽象矢量翅膀（贝塞尔羽毛），折叠态左盖右，展开至双翅全开；宽幅变体适配外屏竖屏 1168×1712 / 内屏横屏 2364×1672 机型
-- **自定义主题**：上传视频可自选起止区间（RangeSlider），规格化（H.264 ≤8Mbps）后整段均匀抽取 45 帧；可选正常/宽屏折叠屏两种目标机型；外屏/内屏图可不选——自动取视频末帧作内屏、内屏右半部分作外屏
+- **三类主题类别**：
+  - **展屏动画**：上传视频可自选起止区间（RangeSlider），规格化（H.264 ≤8Mbps）后整段均匀抽取 45 帧；外屏/内屏图可不选——自动取视频末帧作内屏、内屏右半部分作外屏
+  - **内外图片**：静态内屏 + 外屏壁纸（无需视频），展开时交叉淡化；外屏可不选——从内屏左半 / 中间 / 右半任选其一派生
+  - **展屏模糊**：只需内屏壁纸，外屏自动取内屏右半幅（完整保留、拉伸铺满，无裁剪）；展开动画离线生成——内屏侧为铰链锚定的左面板余弦透视压缩 + 渐进模糊与压暗、右面板始终清晰；外屏侧（外屏 surface 独立渲染）为右半幅窗口从铰链侧向外缘的渐进模糊 + 压暗（0°→90° 映射），完全复刻 Duo 翻页过渡（实现思想参照 [DuoFoldWallpaper](https://github.com/Vyom-2007/DuoFoldWallpaper)，纯软件盒式模糊兼容 minSdk 26，无 AGSL 依赖）
+- **内置主题**：「展翼 / 展翼·宽幅」（矢量翅膀视频动画）、「湖光双色」（内外图片）、「雾境朦胧」（展屏模糊）及三档渐变占位主题；宽幅变体适配外屏竖屏 1168×1712 / 内屏横屏 2364×1672 机型
 - **设置**：动画开关、动画角度区间、铰链去抖平滑（EMA，静止后自驱收敛，默认关闭）、演示模式（自动开合循环，录屏/无铰链设备用）
 - **即时生效**：壁纸引擎监听 SharedPreferences 变化，设置改动无需重设壁纸
 - **渲染**：`lockHardwareCanvas` 优先（失败回退软件画布），LruCache 帧缓存 + 运动方向预取
@@ -20,10 +23,13 @@
 app/src/main/java/com/llzx373/foldcanvas/
 ├── wallpaper/    FoldWallpaperService（引擎）/ FrameRenderer（逐帧渲染）/ AngleFrameMapper（角度→帧映射）
 ├── theme/        ThemeRepository / FrameCache / ProceduralThemeFactory（占位渐变主题）
+│   ├── model/    FoldTheme / ThemeCategory（展屏动画/内外图片/展屏模糊）/ OuterAutoMode
+│   └── duo/      DuoFoldMath（进度→压缩/模糊/压暗映射，纯 Kotlin 可单测）/ BoxBlur / DuoFrameGenerator
 ├── convert/      VideoNormalizer（视频规格化）/ FrameExtractor（抽帧）
 ├── data/         SettingsStore / DeviceProfile（设备屏幕档案探测）
 └── ui/           gallery（主题列表）/ detail / editor（自定义主题）/ settings
 tools/wings_preview/   「展翼」素材生成器 + 纯逻辑 e2e 校验（22 项，详见其 README）
+tools/duo_preview/     「展屏模糊」离线预览生成器 + 纯逻辑 e2e 校验（11 项，像素级断言）
 ```
 
 核心链路：铰链角度事件 → 记录最新角度 → HandlerThread 合并绘制 →
@@ -37,10 +43,13 @@ tools/wings_preview/   「展翼」素材生成器 + 纯逻辑 e2e 校验（22 �
 ./gradlew :app:assembleDebug :app:testDebugUnitTest
 ```
 
-产物：`app/build/outputs/apk/debug/FoldCanvas-v1.1-debug.apk`
+产物：`app/build/outputs/apk/debug/FoldCanvas-v1.2-debug.apk`
 
 素材改动流程：`tools/wings_preview/` 下重新生成 → 拷贝进 `app/src/main/assets/themes/` →
 `python e2e_check.py` 全过 → 重新打包。
+
+展屏模糊效果验证：`cd tools/duo_preview && python generate_duo.py && python e2e_check.py`
+（离线渲染 45 帧 + 像素级断言，产物在 `output/`，含 contact_sheet.png 与 duo_preview.gif）。
 
 ## CI / CD
 

@@ -23,6 +23,23 @@ jobs:
       - name: Unit tests
         run: ./gradlew :app:testDebugUnitTest
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Pillow
+        run: pip install pillow
+
+      - name: Duo preview e2e (blur pyramid math)
+        run: |
+          python tools/duo_preview/generate_duo.py
+          python tools/duo_preview/e2e_check.py
+
+      - name: Wings preview e2e (panel animation math)
+        run: |
+          python tools/wings_preview/generate_wings.py
+          python tools/wings_preview/e2e_check.py
+
       - name: Assemble debug APK
         run: ./gradlew :app:assembleDebug
 
