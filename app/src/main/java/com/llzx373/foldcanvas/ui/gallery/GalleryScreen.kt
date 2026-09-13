@@ -1,7 +1,7 @@
 package com.llzx373.foldcanvas.ui.gallery
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,29 +10,32 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -56,22 +59,36 @@ fun GalleryScreen(
         value = withContext(Dispatchers.IO) { repository.listThemes() }
     }
 
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
+            LargeTopAppBar(
                 title = { Text("折叠画卷") },
                 actions = {
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "设置")
                     }
                 },
+                scrollBehavior = scrollBehavior,
             )
         },
     ) { padding ->
         val list = themes
         if (list == null) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    CircularProgressIndicator()
+                    Text(
+                        "正在加载主题…",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         } else {
             LazyVerticalGrid(
@@ -94,20 +111,44 @@ fun GalleryScreen(
 
 @Composable
 private fun ThemeCard(theme: FoldTheme, onClick: () -> Unit) {
-    Card(onClick = onClick) {
-        Column {
+    Card(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.large,
+        modifier = Modifier.fillMaxWidth().aspectRatio(0.83f),
+    ) {
+        Box(Modifier.fillMaxSize()) {
             AsyncImage(
                 model = theme.innerWallpaper,
                 contentDescription = theme.name,
-                modifier = Modifier.fillMaxWidth().aspectRatio(0.83f),
+                modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
-            Column(Modifier.padding(12.dp)) {
-                Text(theme.name, style = MaterialTheme.typography.titleMedium)
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.45f to Color.Transparent,
+                                1f to Color.Black.copy(alpha = 0.65f),
+                            ),
+                        ),
+                    ),
+            )
+            Column(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(16.dp),
+            ) {
                 Text(
-                    if (theme.isBuiltin) "内置主题" else "自定义主题",
+                    theme.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                )
+                Text(
+                    (if (theme.isBuiltin) "内置" else "自定义") + " · " + theme.category.label,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = Color.White.copy(alpha = 0.8f),
                 )
             }
         }
@@ -116,19 +157,24 @@ private fun ThemeCard(theme: FoldTheme, onClick: () -> Unit) {
 
 @Composable
 private fun CreateCard(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(0.62f)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
+    Card(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.large,
+        modifier = Modifier.fillMaxWidth().aspectRatio(0.83f),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
             Icon(
                 Icons.Default.Add,
                 contentDescription = null,
+                modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.primary,
             )
             Text(
@@ -137,7 +183,7 @@ private fun CreateCard(onClick: () -> Unit) {
                 color = MaterialTheme.colorScheme.primary,
             )
             Text(
-                "视频转展开动画",
+                "展屏动画 / 内外图片 / 展屏模糊",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

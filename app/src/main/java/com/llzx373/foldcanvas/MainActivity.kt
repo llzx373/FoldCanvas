@@ -5,6 +5,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
@@ -23,7 +29,7 @@ class MainActivity : ComponentActivity() {
     private sealed interface Screen {
         data object Gallery : Screen
         data class Detail(val themeId: String) : Screen
-        data object Editor : Screen
+        data class Editor(val themeId: String? = null) : Screen
         data object Settings : Screen
     }
 
@@ -37,23 +43,34 @@ class MainActivity : ComponentActivity() {
                     if (screen !is Screen.Gallery) {
                         BackHandler { screen = Screen.Gallery }
                     }
-                    when (val current = screen) {
-                        Screen.Gallery -> GalleryScreen(
-                            onOpenTheme = { screen = Screen.Detail(it) },
-                            onCreateTheme = { screen = Screen.Editor },
-                            onOpenSettings = { screen = Screen.Settings },
-                        )
-                        is Screen.Detail -> DetailScreen(
-                            themeId = current.themeId,
-                            onBack = { screen = Screen.Gallery },
-                        )
-                        Screen.Editor -> EditorScreen(
-                            onBack = { screen = Screen.Gallery },
-                            onSaved = { screen = Screen.Detail(it) },
-                        )
-                        Screen.Settings -> SettingsScreen(
-                            onBack = { screen = Screen.Gallery },
-                        )
+                    AnimatedContent(
+                        targetState = screen,
+                        transitionSpec = {
+                            (fadeIn() + slideInHorizontally { it / 12 })
+                                .togetherWith(fadeOut() + slideOutHorizontally { -it / 12 })
+                        },
+                        label = "screen"
+                    ) { current ->
+                        when (current) {
+                            Screen.Gallery -> GalleryScreen(
+                                onOpenTheme = { screen = Screen.Detail(it) },
+                                onCreateTheme = { screen = Screen.Editor() },
+                                onOpenSettings = { screen = Screen.Settings },
+                            )
+                            is Screen.Detail -> DetailScreen(
+                                themeId = current.themeId,
+                                onBack = { screen = Screen.Gallery },
+                                onEdit = { screen = Screen.Editor(it) },
+                            )
+                            is Screen.Editor -> EditorScreen(
+                                editThemeId = current.themeId,
+                                onBack = { screen = Screen.Gallery },
+                                onSaved = { screen = Screen.Detail(it) },
+                            )
+                            Screen.Settings -> SettingsScreen(
+                                onBack = { screen = Screen.Gallery },
+                            )
+                        }
                     }
                 }
             }
