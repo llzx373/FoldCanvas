@@ -40,9 +40,13 @@ jobs:
           FOLDCANVAS_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           FOLDCANVAS_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
+      - name: Extract tag message as release notes
+        run: git tag -l --format='%(contents)' "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          body_path: ${{ runner.temp }}/notes.md
           generate_release_notes: true
           files: |
             app/build/outputs/apk/release/FoldCanvas-*-release.apk
