@@ -18,12 +18,16 @@ jobs:
           distribution: temurin
           java-version: "25"
 
+      - uses: android-actions/setup-android@v3
+
       - uses: gradle/actions/setup-gradle@v4
 
       # 可选：配置 secrets 后签名 release APK（未配置则产出未签名包）
       - name: Decode keystore
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.keystore"
+        if: ${{ env.KEYSTORE_B64 != '' }}
+        run: echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_BASE64 }}
 
       - name: Unit tests
         run: ./gradlew :app:testDebugUnitTest
