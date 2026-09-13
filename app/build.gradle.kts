@@ -1,7 +1,14 @@
+import java.io.File
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
+
+// CI release 签名：配置 FOLDCANVAS_* 环境变量且 keystore 文件存在时启用，
+// 否则 release 保持未签名（本地构建不受影响）
+val releaseStoreFile = System.getenv("FOLDCANVAS_STORE_FILE")
+    ?.takeIf { it.isNotBlank() && File(it).isFile }
 
 android {
     namespace = "com.llzx373.foldcanvas"
@@ -19,8 +26,22 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (releaseStoreFile != null) {
+            create("release") {
+                storeFile = file(releaseStoreFile)
+                storePassword = System.getenv("FOLDCANVAS_STORE_PASSWORD")
+                keyAlias = System.getenv("FOLDCANVAS_KEY_ALIAS")
+                keyPassword = System.getenv("FOLDCANVAS_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (releaseStoreFile != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             optimization {
                 enable = false
             }
