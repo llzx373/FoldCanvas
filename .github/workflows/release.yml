@@ -23,11 +23,13 @@ jobs:
         run: |
           pip install pillow pyinstaller
           pyinstaller 主题包制作工具.spec
+          # 中文文件名在 artifact/Release 链路上会被错误转码，统一改 ASCII 名
+          Move-Item "dist/主题包制作工具.exe" "dist/FoldThemePacker.exe"
 
       - uses: actions/upload-artifact@v4
         with:
           name: theme-packer-exe
-          path: tools/theme_packer/dist/主题包制作工具.exe
+          path: tools/theme_packer/dist/FoldThemePacker.exe
 
   release:
     needs: desktop-tool
@@ -82,7 +84,13 @@ jobs:
           files: |
             app/build/outputs/apk/release/FoldCanvas-*-release.apk
             app/build/outputs/apk/debug/FoldCanvas-*-debug.apk
-            tools/theme_packer/dist/主题包制作工具.exe
+            tools/theme_packer/dist/FoldThemePacker.exe
+
+      # action-gh-release 不删除旧附件：清掉 v1.3 首次发布时中文名被转码产生的 default.exe
+      - name: Remove stale default.exe asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release delete-asset "$GITHUB_REF_NAME" default.exe --yes || true
 
       # action-gh-release 对已有 release 不会更新正文，用 gh 强制覆盖
       - name: Update release notes

@@ -16,13 +16,13 @@ pip install pillow
 
 ## 用法
 
-直接运行打包好的 `dist/主题包制作工具.exe`（无需安装 Python），或从源码运行：
+从 GitHub Release 下载 `FoldThemePacker.exe`（无需安装 Python），或本地打包/从源码运行：
 
 ```bash
 python theme_packer.py
 ```
 
-重新打包 exe：
+本地重新打包 exe（产出 `dist/主题包制作工具.exe`；CI 发布时会改名为 FoldThemePacker.exe）：
 
 ```bash
 pip install pyinstaller
