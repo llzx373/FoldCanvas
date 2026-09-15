@@ -40,8 +40,8 @@ jobs:
           distribution: temurin
           java-version: "25"
 
-      - uses: android-actions/setup-android@v4
-
+      # ubuntu-latest 预装 Android SDK（platforms 至 android-37.x、build-tools 37.0.0），
+      # 无需 setup-android
       - uses: gradle/actions/setup-gradle@v4
 
       # 可选：配置 secrets 后签名 release APK（未配置则产出未签名包）
