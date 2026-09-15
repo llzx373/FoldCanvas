@@ -86,12 +86,6 @@ jobs:
             app/build/outputs/apk/debug/FoldCanvas-*-debug.apk
             tools/theme_packer/dist/FoldThemePacker.exe
 
-      # action-gh-release 不删除旧附件：清掉 v1.3 首次发布时中文名被转码产生的 default.exe
-      - name: Remove stale default.exe asset
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release delete-asset "$GITHUB_REF_NAME" default.exe --yes || true
-
       # action-gh-release 对已有 release 不会更新正文，用 gh 强制覆盖
       - name: Update release notes
         env:
