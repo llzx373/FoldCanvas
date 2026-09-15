@@ -1,5 +1,7 @@
 package com.llzx373.foldcanvas.ui.gallery
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +18,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -40,9 +43,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.llzx373.foldcanvas.theme.ThemePackageImporter
 import com.llzx373.foldcanvas.theme.ThemeRepository
 import com.llzx373.foldcanvas.theme.model.FoldTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,10 +58,32 @@ fun GalleryScreen(
     onOpenSettings: () -> Unit,
 ) {
     val context = LocalContext.current
-    val repository = androidx.compose.runtime.remember { ThemeRepository(context.applicationContext) }
+    val appContext = context.applicationContext
+    val repository = androidx.compose.runtime.remember { ThemeRepository(appContext) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     val themes by produceState<List<FoldTheme>?>(initialValue = null) {
         repository.ensureBuiltinAssets()
         value = withContext(Dispatchers.IO) { repository.listThemes() }
+    }
+
+    // 从文件选择器导入 .foldtheme 主题包（文件管理器"打开方式"之外的兜底入口）
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            android.widget.Toast.makeText(appContext, "正在导入主题包…", android.widget.Toast.LENGTH_SHORT).show()
+            ThemePackageImporter(appContext).import(uri)
+                .onSuccess {
+                    android.widget.Toast.makeText(appContext, "主题包已导入", android.widget.Toast.LENGTH_SHORT).show()
+                    onOpenTheme(it.id)
+                }
+                .onFailure {
+                    android.widget.Toast.makeText(
+                        appContext, it.message ?: "主题包导入失败", android.widget.Toast.LENGTH_LONG,
+                    ).show()
+                }
+        }
     }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -67,6 +94,13 @@ fun GalleryScreen(
             LargeTopAppBar(
                 title = { Text("折叠画卷") },
                 actions = {
+                    IconButton(onClick = {
+                        importLauncher.launch(
+                            arrayOf("application/zip", "application/octet-stream", "*/*")
+                        )
+                    }) {
+                        Icon(Icons.Default.FolderOpen, contentDescription = "导入主题包")
+                    }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "设置")
                     }

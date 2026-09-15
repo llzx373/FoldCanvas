@@ -8,7 +8,29 @@ permissions:
   contents: write
 
 jobs:
+  # 桌面主题包工具（Windows 单文件 exe，必须在 Windows runner 上构建）
+  desktop-tool:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build exe
+        working-directory: tools/theme_packer
+        run: |
+          pip install pillow pyinstaller
+          pyinstaller 主题包制作工具.spec
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: theme-packer-exe
+          path: tools/theme_packer/dist/主题包制作工具.exe
+
   release:
+    needs: desktop-tool
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +62,12 @@ jobs:
           FOLDCANVAS_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           FOLDCANVAS_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
+      - name: Download desktop tool exe
+        uses: actions/download-artifact@v4
+        with:
+          name: theme-packer-exe
+          path: tools/theme_packer/dist
+
       - name: Extract tag message as release notes
         run: |
           # 浅克隆下 tag ref 被剥离为直接指向 commit，需显式拉取 tag 对象
@@ -54,6 +82,7 @@ jobs:
           files: |
             app/build/outputs/apk/release/FoldCanvas-*-release.apk
             app/build/outputs/apk/debug/FoldCanvas-*-debug.apk
+            tools/theme_packer/dist/主题包制作工具.exe
 
       # action-gh-release 对已有 release 不会更新正文，用 gh 强制覆盖
       - name: Update release notes

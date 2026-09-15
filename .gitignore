@@ -9,5 +9,7 @@
 .cxx
 local.properties
 tools/wings_preview/output/
+tools/theme_packer/build/
+tools/theme_packer/dist/
 __pycache__/
 *.pyc

@@ -29,6 +29,17 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- 文件管理器中点开 .foldtheme 主题包直接导入 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:pathPattern=".*\.foldtheme" />
+            </intent-filter>
         </activity>
 
         <service
